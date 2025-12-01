@@ -19,11 +19,15 @@ class FileReader:
 
 
 class InventoryReader(FileReader):
-    def _parse_data(self, data_line):  # type: ignore
+    def __init__(self, file_path):
         inventory_data_re = r"\[(?P<timestamp>\d+)\] (?P<action_type>\w+) \| (?P<player_id>\d+), \((?P<items_data>(\d+, )+\d+)\)"
-        inventory_data_match = re.match(inventory_data_re, data_line)
+        self.inventory_data_re_compile = re.compile(inventory_data_re)
+        super(InventoryReader, self).__init__(file_path)
+
+    def _parse_data(self, data_line):  # type: ignore
+        inventory_data_match = self.inventory_data_re_compile.match(data_line)
         if inventory_data_match is None:
-            raise ValueError("Can't parse file")
+            raise ValueError("Can't parse InventoryReader in file: " + self.file_path)
 
         # Parse items_data
         items_data = inventory_data_match.group("items_data").split(", ")
@@ -31,52 +35,68 @@ class InventoryReader(FileReader):
         if len(items_data) % 2 != 0:
             raise ValueError("Odd items data len, expected even")
 
-        items_type = items_data[::2]
-        items_amount = items_data[1::2]
+        # Split data by logical sight
+        item_type_list = items_data[::2]
+        item_amount_list = items_data[1::2]
         # Converation str to int
-        if inventory_data_match.group("action_type") == "ITEM_ADD":
-            items_amount = tuple(map(int, items_amount))
-        elif inventory_data_match.group("action_type") == "ITEM_REMOVE":
-            items_amount = tuple(map(lambda x: -int(x), items_amount))
-        else:
-            raise ValueError("undefined action type")
+        item_amount_list = tuple(map(int, item_amount_list))
 
+        if inventory_data_match.group("action_type") == "ITEM_ADD":
+            item_sign = 1
+        elif inventory_data_match.group("action_type") == "ITEM_REMOVE":
+            item_sign = -1
+        else:
+            raise ValueError(
+                "Unexpected action_type in InventoryReader: "
+                + inventory_data_match.group("action_type")
+            )
         items_data = tuple(
-            (item_type, item_amount)
-            for item_type, item_amount in zip(items_type, items_amount)
+            (item_type, item_sign * item_amount)
+            for item_type, item_amount in zip(item_type_list, item_amount_list)
         )
 
-        inventory_dict = inventory_data_match.groupdict()
-        # Replace items_data with parsed one
-        inventory_dict["items_data"] = items_data
-        # Full data string
-        inventory_dict["data_line"] = data_line
-        return inventory_dict
+        return {
+            "timestamp": "[" + inventory_data_match.group("timestamp") + "]",
+            "action_type": inventory_data_match.group("action_type"),
+            "player_id": inventory_data_match.group("player_id"),
+            "items_data": items_data,
+            "data_line": data_line,
+        }
 
 
 class MoneyReader(FileReader):
+    def __init__(self, file_path):
+        money_data_re = r"(?P<timestamp>\d+)\|(?P<player_id>\d+)\|(?P<action_type>\w+),(?P<money_amount>\d+),(?P<reason>\w+)"
+        self.money_data_re_compile = re.compile(money_data_re)
+        super(MoneyReader, self).__init__(file_path)
+
     def _parse_data(self, data_line):  # type: ignore
-        money_data_re = r"\[(?P<timestamp>\d+)\] (?P<player_id>\w+) \| \((?P<action_type>\w+), (?P<amount>\d+), (?P<reason>\w+))"
-        money_data_match = re.match(money_data_re, data_line)
+        money_data_match = self.money_data_re_compile.match(data_line)
         if money_data_match is None:
-            raise ValueError("Can't parse file")
-        money_data = money_data_match.groupdict()
+            raise ValueError("Can't parse MoneyReader file: " + self.file_path)
+        # money_data = money_data_match.groupdict()
 
         # Convertation str to int
-        if money_data.get("action_type") == "MONEY_ADD":
-            money_data["amount"] = int(money_data["amount"])
-        elif money_data.get("action_type") == "MONEY_REMOVE":
-            money_data["amount"] = -int(money_data["amount"])
+        if money_data_match.group("action_type") == "MONEY_ADD":
+            money_sign = 1
+        elif money_data_match.group("action_type") == "MONEY_REMOVE":
+            money_sign = -1
         else:
-            raise ValueError("undefined action type")
-        money_data["data_line"] = data_line
-        return money_data
+            raise ValueError(
+                "Unexpected action_type in MoneyReader: "
+                + money_data_match.group("action_type")
+            )
+        money_amount = money_sign * int(money_data_match.group("money_amount"))
+        return {
+            "timestamp": "[" + money_data_match.group("timestamp") + "]",
+            "player_id": money_data_match.group("player_id"),
+            "action_type": money_data_match.group("action_type"),
+            "money_amount": money_amount,
+            "reason": money_data_match.group("reason"),
+        }
 
 
-# TODO: Realize line by line reader
 class AllLogsReader:
-    DATE_MAX = "31.12.999 23:59:59"
-
     def __init__(self, *readers):
         self._readers = readers
 
@@ -87,46 +107,44 @@ class AllLogsReader:
         except StopIteration:
             return None
 
-    # @classmethod
-    # def _get_timestamp(cls, val):
-    #     if val is None:
-    #         return cls.DATE_MAX
-    #     else:
-    #         return val["timestamp"]
-
     def __iter__(self):
         # Add only log files with at least one readable log line
-        reader_iter_list = []
-        cur_val_list = []
+        reader_iters = []
+        cur_entries = []
         for reader in self._readers:
             cur_iter = iter(reader)
             cur_val = AllLogsReader._get_next(cur_iter)
             if cur_val is not None:
                 # Exist at least one readable line in the file
-                reader_iter_list.append(cur_iter)
-                cur_val_list.append(cur_val)
+                reader_iters.append(cur_iter)
+                cur_entries.append(cur_val)
 
-        if len(reader_iter_list) == 0:
+        if len(reader_iters) == 0:
             raise ValueError(
-                "Get 0 logs lines, files are unreadable or there is not reader files"
+                "Get 0 logs lines, files are unreadable or there is no readeable files"
             )
 
         while True:
-            next_timestamp_idx = cur_val_list.index(
-                # min(cur_val_list, key=lambda x: AllLogsReader._get_timestamp(x))
-                min(cur_val_list, key=lambda x: x["timestamp"])
+            next_timestamp_idx = cur_entries.index(
+                min(cur_entries, key=lambda x: x["timestamp"])
             )
-            next_value = AllLogsReader._get_next(reader_iter_list[next_timestamp_idx])
+            cur_value = cur_entries[next_timestamp_idx]
+            next_value = AllLogsReader._get_next(reader_iters[next_timestamp_idx])
             if next_value is None:
-                if len(reader_iter_list) == 1:
-                    # Get out of last iterator
+                if len(reader_iters) == 1:
+                    # Last value of the last iterator
+                    yield cur_value
                     break
-                # Get end of the iterator
-                if next_timestamp_idx == len(reader_iter_list) - 1:
-                    reader_iter_list = reader_iter_list[:next_timestamp_idx]
-                else:
-                    reader_iter_list = (
-                        reader_iter_list[:next_timestamp_idx]
-                        + reader_iter_list[next_timestamp_idx + 1 :]
-                    )
-            yield next_value
+
+                # Delete next_timestamp_idx id from list
+                reader_iters = (
+                    reader_iters[:next_timestamp_idx]
+                    + reader_iters[next_timestamp_idx + 1 :]
+                )
+                cur_entries = (
+                    cur_entries[:next_timestamp_idx]
+                    + cur_entries[next_timestamp_idx + 1 :]
+                )
+            else:
+                cur_entries[next_timestamp_idx] = next_value
+            yield cur_value
