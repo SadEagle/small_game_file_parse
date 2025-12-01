@@ -13,7 +13,7 @@ from analytics import (
 )
 
 
-def make_file_analytics(items_manager, player_manager):
+def make_file_analytics(player_manager, item_manager):
     # Get analytics
     top_10_mention_times = get_top_n_log_mention_items(item_manager)
     top_10_rich_players = get_top_n_player_by_money(player_manager)
@@ -44,7 +44,7 @@ def make_file_analytics(items_manager, player_manager):
             f.write(item_id + ", " + first_item_timestamp + "\n")
         f.write("\nLast 10 Items:\n")
         # Need reverse top n last because of order
-        for last_item_timestamp, item_id in first_10_items_met[::-1]:
+        for last_item_timestamp, item_id in last_10_items_met[::-1]:
             f.write(item_id + ", " + last_item_timestamp + "\n")
 
 
@@ -110,6 +110,6 @@ if __name__ == "__main__":
         else:
             raise ValueError("Unknown action type")
 
-    make_file_analytics(item_manager, player_manager)
+    make_file_analytics(player_manager, item_manager)
 
     interactive_answers(player_manager)
