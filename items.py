@@ -1,36 +1,39 @@
+import xml.etree.ElementTree as ET
+
+
 class Item:
-    def __init__(self, item_id):
-        self._id = id
-        self._first_appearence = None
-        self._last_appearence = None
-        self._appearence_count = 0
+    def __init__(self, item_id, item_name=None, price=None):
+        self.id = id
+        self.name = item_name
+        self.price = price
+        self.first_appearence = None
+        self.last_appearence = None
+        self.appearence_count = 0
 
     def add_timestamp(self, timestamp):
-        if self._first_appearence is None:
-            self._first_appearence = timestamp
-        self._last_appearence = timestamp
-        self._appearence_count += 1
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def first_appearence(self):
-        return self._first_appearence
-
-    @property
-    def last_appearence(self):
-        return self._last_appearence
-
-    @property
-    def appearence_count(self):
-        return self._appearence_count
+        if self.first_appearence is None:
+            self.first_appearence = timestamp
+        self.last_appearence = timestamp
+        self.appearence_count += 1
 
 
 class ItemManager:
-    def __init__(self):
+    def __init__(self, item_data_path=None):
         self._items = {}
+
+        if item_data_path is not None:
+            with open(item_data_path) as f:
+                xml_string = f.read()
+            root = ET.fromstring(xml_string)
+            for item in root.findall("item"):
+                item_dict = {}
+                for child in item:
+                    item_dict[child.tag] = child.text
+                self._items[item_dict["item_type_id"]] = Item(
+                    item_dict["item_type_id"],
+                    item_dict["item_name"],
+                    item_dict["price"],
+                )
 
     def add_item_timestamp(self, item_id, timestamp):
         if self._items.get(item_id) is None:

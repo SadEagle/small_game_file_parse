@@ -22,36 +22,46 @@ def make_file_analytics(player_manager, item_manager):
     with open("./output.txt", "w") as f:
         f.write("Top 10 mention itmes:\n")
         for count, item_id in top_10_mention_times:
-            f.write(item_id + ", " + str(count) + "\n")
+            cur_item = item_manager.get_item(item_id)
+            f.write(cur_item.name + ", " + str(count) + "\n")
         f.write("\nTop 10 richest players:\n")
         for _, player_id in top_10_rich_players:
             cur_player = player_manager.get_player(player_id)
             if cur_player is None:
                 raise ValueError("Unexpected player")
-            f.write(
-                cur_player.id
-                + ", "
-                + str(cur_player.money)
-                + ", "
-                + cur_player.first_appearence
-                + ", "
-                + cur_player.last_appearence
-                + "\n"
-            )
+            if cur_player.name is None:
+                player_name = player_id
+            else:
+                player_name = cur_player.name
+
+            if cur_player.first_appearence is not None:
+                f.write(
+                    player_name
+                    + ", "
+                    + str(cur_player.money)
+                    + ", "
+                    + cur_player.first_appearence
+                    + ", "
+                    + cur_player.last_appearence
+                    + "\n"
+                )
+            else:
+                f.write(player_name + ", " + str(cur_player.money) + "\n")
 
         f.write("\nFirst 10 items:\n")
         for first_item_timestamp, item_id in first_10_items_met:
-            f.write(item_id + ", " + first_item_timestamp + "\n")
+            cur_item = item_manager.get_item(item_id)
+            f.write(cur_item.name + ", " + first_item_timestamp + "\n")
         f.write("\nLast 10 Items:\n")
         # Need reverse top n last because of order
         for last_item_timestamp, item_id in last_10_items_met[::-1]:
-            f.write(item_id + ", " + last_item_timestamp + "\n")
+            cur_item = item_manager.get_item(item_id)
+            f.write(cur_item.name + ", " + last_item_timestamp + "\n")
 
 
 def interactive_answers(player_manager):
     # {item_id: set(player_id)}
     item_relation_map = defaultdict(set)
-
     for player_id in player_manager.get_player_ids():
         player_items = player_manager.get_player(player_id).get_items_ids()
 
@@ -59,30 +69,42 @@ def interactive_answers(player_manager):
             item_relation_map[item_id].add(player_id)
 
     while True:
-        item_id = input()
-        current_item_players = item_relation_map.get(item_id)
-        if current_item_players is None:
-            print("Unknown item, please try another one")
+        print("Insert item_id:")
+        item_id_input = str(input())
+        if int(item_id_input) > 1000:
+            print("Item_id has limit 1 <= item_type_id <= 1000. Try again")
             continue
+
+        current_item_players = item_relation_map[item_id_input]
 
         total_amount = 0
         heap_item_player_amount = []
 
         for player_id in current_item_players:
             cur_player_amount = player_manager.get_player(player_id).get_item_amount(
-                item_id
+                item_id_input
             )
-            total_amount += cur_player_amount
-            heap_item_player_amount.append((cur_player_amount, player_id))
+            if cur_player_amount > 0:
+                total_amount += cur_player_amount
+                heap_item_player_amount.append((cur_player_amount, player_id))
 
         top_10_item_players = heapq.nlargest(10, heap_item_player_amount)
 
-        print()
-        print("Item_id: " + item_id)
+        item_name = item_manager.get_item(item_id_input).name
+        print("")
+        if item_name is not None:
+            print("Item_name: " + item_name)
+        else:
+            print("Item_id: " + item_id_input)
         print("Item amount: " + str(total_amount))
         print("Top players:")
         for item_amount, player_id in top_10_item_players:
-            print(player_id + ", " + str(item_amount))
+            player = player_manager.get_player(player_id)
+            if player.name is not None:
+                print(player.name + ", " + str(item_amount))
+            else:
+                print(player_id + ", " + str(item_amount))
+        print("")
 
 
 if __name__ == "__main__":
@@ -90,10 +112,9 @@ if __name__ == "__main__":
     money_reader = MoneyReader("./money_logs.txt")
     all_logs_reader = AllLogsReader(inventory_reader, money_reader)
 
-    # print(next(iter(money_reader)))
     # TODO: add file writer
-    player_manager = PlayerManager()
-    item_manager = ItemManager()
+    player_manager = PlayerManager("./db.json")
+    item_manager = ItemManager("./items.xml")
 
     # Logs processing
     for data_log in all_logs_reader:
@@ -110,6 +131,10 @@ if __name__ == "__main__":
         else:
             raise ValueError("Unknown action type")
 
+    print("Producing output.txt file analytics...")
     make_file_analytics(player_manager, item_manager)
+    print("File output.txt was successfully created!")
+    print("")
+    print("Starting interactive analytics")
 
     interactive_answers(player_manager)

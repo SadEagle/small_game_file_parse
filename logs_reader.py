@@ -20,13 +20,20 @@ class FileReader:
 
 class InventoryReader(FileReader):
     def __init__(self, file_path):
-        inventory_data_re = r"\[(?P<timestamp>\d+)\] (?P<action_type>\w+) \| (?P<player_id>\d+), \((?P<items_data>(\d+, )+\d+)\)"
+        # Example file and thechnical task has 2 different file versions
+        inventory_data_re = r"\[(?P<timestamp>\d+)\] (?P<player_id>\d+) \| (?P<action_type>\w+), \((?P<items_data>(\d+, )+\d+)\)"
+        inventory_data_re_example = r"\[(?P<timestamp>\d+)\] (?P<action_type>\w+) \| (?P<player_id>\d+), \((?P<items_data>(\d+, )+\d+)\)"
         self.inventory_data_re_compile = re.compile(inventory_data_re)
+        self.inventory_data_re_example_compile = re.compile(inventory_data_re_example)
         super(InventoryReader, self).__init__(file_path)
 
     def _parse_data(self, data_line):  # type: ignore
         inventory_data_match = self.inventory_data_re_compile.match(data_line)
         if inventory_data_match is None:
+            inventory_data_match = self.inventory_data_re_example_compile.match(
+                data_line
+            )
+        elif inventory_data_match is None:
             raise ValueError("Can't parse InventoryReader in file: " + self.file_path)
 
         # Parse items_data
