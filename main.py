@@ -39,11 +39,11 @@ def make_file_analytics(data_manager):
                     player_name
                     + ", "
                     + str(cur_player.money_amount)
-                    + ", "
-                    + cur_player.first_appearence
-                    + ", "
-                    + cur_player.last_appearence
-                    + "\n"
+                    + ", ["
+                    + str(cur_player.first_appearence)
+                    + "], ["
+                    + str(cur_player.last_appearence)
+                    + "]\n"
                 )
             else:
                 f.write(player_name + ", " + str(cur_player.money_amount) + "\n")
@@ -51,12 +51,12 @@ def make_file_analytics(data_manager):
         f.write("\nFirst 10 items:\n")
         for first_item_timestamp, item_id in first_10_items_met:
             cur_item = data_manager.items[item_id]
-            f.write(cur_item.name + ", " + first_item_timestamp + "\n")
+            f.write(cur_item.name + ", [" + str(first_item_timestamp) + "]\n")
         f.write("\nLast 10 Items:\n")
         # Need reverse top n last because of order
         for last_item_timestamp, item_id in last_10_items_met[::-1]:
             cur_item = data_manager.items[item_id]
-            f.write(cur_item.name + ", " + last_item_timestamp + "\n")
+            f.write(cur_item.name + ", [" + str(last_item_timestamp) + "]\n")
 
 
 def interactive_answers(data_manager):

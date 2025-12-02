@@ -63,7 +63,7 @@ class InventoryReader(FileReader):
         )
 
         return {
-            "timestamp": "[" + inventory_data_match.group("timestamp") + "]",
+            "timestamp": int(inventory_data_match.group("timestamp")),
             "action_type": inventory_data_match.group("action_type"),
             "player_id": inventory_data_match.group("player_id"),
             "items_data": items_data,
@@ -95,7 +95,7 @@ class MoneyReader(FileReader):
             )
         money_amount = money_sign * int(money_data_match.group("money_amount"))
         return {
-            "timestamp": "[" + money_data_match.group("timestamp") + "]",
+            "timestamp": int(money_data_match.group("timestamp")),
             "player_id": money_data_match.group("player_id"),
             "action_type": money_data_match.group("action_type"),
             "money_amount": money_amount,
