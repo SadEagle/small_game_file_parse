@@ -19,21 +19,28 @@ class FileReader:
 
 
 class InventoryReader(FileReader):
+    # Task file parse structure (somehow different)
+    inventory_data_re_compile = re.compile(
+        r"\[(?P<timestamp>\d+)\] (?P<player_id>\d+) \| (?P<action_type>\w+), \((?P<items_data>(\d+, )+\d+)\)"
+    )
+    # Current file parse
+    inventory_data_re_example_compile = re.compile(
+        r"\[(?P<timestamp>\d+)\] (?P<action_type>\w+) \| (?P<player_id>\d+), \((?P<items_data>(\d+, )+\d+)\)"
+    )
+
     def __init__(self, file_path):
         # Example file and thechnical task has 2 different file versions
-        inventory_data_re = r"\[(?P<timestamp>\d+)\] (?P<player_id>\d+) \| (?P<action_type>\w+), \((?P<items_data>(\d+, )+\d+)\)"
-        inventory_data_re_example = r"\[(?P<timestamp>\d+)\] (?P<action_type>\w+) \| (?P<player_id>\d+), \((?P<items_data>(\d+, )+\d+)\)"
-        self.inventory_data_re_compile = re.compile(inventory_data_re)
-        self.inventory_data_re_example_compile = re.compile(inventory_data_re_example)
         super(InventoryReader, self).__init__(file_path)
 
     def _parse_data(self, data_line):  # type: ignore
-        inventory_data_match = self.inventory_data_re_compile.match(data_line)
+        inventory_data_match = InventoryReader.inventory_data_re_compile.match(
+            data_line
+        )
         if inventory_data_match is None:
-            inventory_data_match = self.inventory_data_re_example_compile.match(
-                data_line
+            inventory_data_match = (
+                InventoryReader.inventory_data_re_example_compile.match(data_line)
             )
-        elif inventory_data_match is None:
+        if inventory_data_match is None:
             raise ValueError("Can't parse InventoryReader in file: " + self.file_path)
 
         # Parse items_data
@@ -72,13 +79,15 @@ class InventoryReader(FileReader):
 
 
 class MoneyReader(FileReader):
+    money_data_re_compile = re.compile(
+        r"(?P<timestamp>\d+)\|(?P<player_id>\d+)\|(?P<action_type>\w+),(?P<money_amount>\d+),(?P<reason>\w+)"
+    )
+
     def __init__(self, file_path):
-        money_data_re = r"(?P<timestamp>\d+)\|(?P<player_id>\d+)\|(?P<action_type>\w+),(?P<money_amount>\d+),(?P<reason>\w+)"
-        self.money_data_re_compile = re.compile(money_data_re)
         super(MoneyReader, self).__init__(file_path)
 
     def _parse_data(self, data_line):  # type: ignore
-        money_data_match = self.money_data_re_compile.match(data_line)
+        money_data_match = MoneyReader.money_data_re_compile.match(data_line)
         if money_data_match is None:
             raise ValueError("Can't parse MoneyReader file: " + self.file_path)
         # money_data = money_data_match.groupdict()

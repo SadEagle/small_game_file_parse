@@ -63,10 +63,10 @@ class DataManager:
                 )
 
     def add_item(self, player_id, item_id, item_amount, timestamp):
-        if self.players[player_id] is None:
+        if self.players.get(player_id) is None:
             # Object wasn't preloaded and firstly appeared inside logs
             self.players[player_id] = Player(player_id)
-        if self.items[item_id] is None:
+        if self.items.get(item_id) is None:
             # Item wasn't preloaded and firstly appeared inside logs
             self.items[item_id] = Item(item_id)
         cur_player = self.players[player_id]
@@ -91,7 +91,7 @@ class DataManager:
             self.add_item(player_id, item_id, item_amount, timestamp)
 
     def add_money(self, player_id, money_amount, timestamp):
-        if self.players[player_id] is None:
+        if self.players.get(player_id) is None:
             # Object wasn't preloaded and firstly appeared inside logs
             self.players[player_id] = Player(player_id)
 
