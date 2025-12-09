@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 import re
 
 
-class FileReader:
+class LogFileReader:
     __metaclass__ = ABCMeta
 
     def __init__(self, file_path):
@@ -18,7 +18,7 @@ class FileReader:
         pass
 
 
-class InventoryReader(FileReader):
+class InventoryReader(LogFileReader):
     # Task file parse structure (somehow different)
     inventory_data_re_compile = re.compile(
         r"\[(?P<timestamp>\d+)\] (?P<player_id>\d+) \| (?P<action_type>\w+), \((?P<items_data>(\d+, )+\d+)\)"
@@ -78,7 +78,7 @@ class InventoryReader(FileReader):
         }
 
 
-class MoneyReader(FileReader):
+class MoneyReader(LogFileReader):
     money_data_re_compile = re.compile(
         r"(?P<timestamp>\d+)\|(?P<player_id>\d+)\|(?P<action_type>\w+),(?P<money_amount>\d+),(?P<reason>\w+)"
     )
@@ -136,9 +136,7 @@ class AllLogsReader:
                 cur_entries.append(cur_val)
 
         if len(reader_iters) == 0:
-            raise ValueError(
-                "Get 0 logs lines, files are unreadable or there is no readeable files"
-            )
+            return
 
         while True:
             next_timestamp_idx = cur_entries.index(
